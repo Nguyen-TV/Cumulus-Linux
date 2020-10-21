@@ -1,0 +1,62 @@
+leaf 3
+
+
+
+net add interface eth0 ip add 10.10.10.13/24
+net add interface eth0 ip gateway 10.10.10.1
+net add dns nameserver ipv4 8.8.8.8
+net add time zone Asia/Ho_Chi_Minh
+net del time ntp server 0.cumulusnetworks.pool.ntp.org
+net del time ntp server 1.cumulusnetworks.pool.ntp.org
+net del time ntp server 2.cumulusnetworks.pool.ntp.org
+net del time ntp server 3.cumulusnetworks.pool.ntp.org
+net add time ntp server 10.10.10.1 iburst
+net add hostname leaf03
+
+
+net add clag peer sys-mac 44:38:39:FF:01:03 interface swp47-48 primary backup-ip 10.10.10.14
+# tạo peering 
+net add bond peerlink mtu 9000
+# VXLAN dùng MTU 9000 trong các Jumbo frame, Two common MTUs for jumbo frames are 9216 (the default value) and 9000 bytes. VNIs are 9166 and 8950.
+net add interface swp49-54 mtu 9216
+#Use MTU 9216 for a bridge
+net add loopback lo ip add 10.0.0.13/32
+#set loopback	
+net add loopback lo clag vxlan-anycast-ip 10.0.0.2
+#Active-active VTEP Anycast IP Behavior. Địa chỉ kết thúc VXLAN là địa chỉ IP anycast mà bạn định cấu hình làm tham số clagd
+
+net add bgp autonomous-system 65013
+net add bgp router-id 10.0.0.13
+net add bgp bestpath as-path multipath-relax
+# equal-cost multipathing (ECMP) . Cân bằng tải cùng 1 đích đến nếu có cho phí bằng nhau.
+net add bgp neighbor swp49-52 interface remote-as external
+net add bgp l2vpn evpn neighbor swp49-52 activate
+net add bgp ipv6 unicast neighbor swp49-52 activate
+net add bgp evpn advertise-all-vni
+# cấu hình của BGP trong cumulus IPV6 cần được active. mặc định IPV4 đã được active.
+net add bgp network 10.0.0.13/32
+net add bgp network 10.0.0.2/32
+
+net add vxlan vxlan10112 vxlan id 10112
+net add vxlan vxlan10112 vxlan local-tunnelip 10.0.0.13
+# Với MLAG peering, cả hai thiết bị chuyển mạch đều sử dụng địa chỉ IP anycast để đóng gói và giải mã VXLAN. 
+#Điều này cho phép các VTEP từ xa tìm hiểu các địa chỉ MAC máy chủ được gắn với MLAG chuyển sang một VTEP logic,
+# ngay cả khi các thiết bị chuyển mạch đóng gói và phân tách độc lập lưu lượng truy cập lớp 2 bắt nguồn từ máy chủ. 
+#Bạn có thể cấu hình địa chỉ anycast trong giao diện loopback.
+net add vxlan vxlan10112 bridge access 112
+net add vxlan vxlan10112 bridge learning off
+# When EVPN is provisioned, you must disable data plane MAC learning for VXLAN interfaces because the purpose of EVPN is to exchange MACs between VTEPs in the control plane
+#net add vxlan vxlan10112 bridge arp-nd-suppress on
+net add vlan 112 ipv6 forward off
+net add vlan 112 ip forward off
+net add vxlan vxlan10112 mtu 9000
+
+
+
+net add vxlan vxlan10103 vxlan id 10103
+net add vxlan vxlan10103 vxlan local-tunnelip 10.0.0.13
+net add vxlan vxlan10103 bridge access 103
+net add vxlan vxlan10103 bridge learning off
+#net add vxlan vxlan10103 bridge arp-nd-suppress on
+net add vlan 103 ipv6 forward off
+net add vlan 103 ip forward off
